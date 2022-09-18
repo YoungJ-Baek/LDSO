@@ -164,7 +164,7 @@ public:
 
     void setGlobalCalibration() {
         int w_out, h_out;
-        Eigen::Matrix3f K;
+        Eigen::Matrix3f K; // 3x3 matrix, dtype=float
         getCalibMono(K, w_out, h_out);
         setGlobalCalib(w_out, h_out, K);
     }
