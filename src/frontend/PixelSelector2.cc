@@ -5,65 +5,83 @@
 using namespace ldso::internal;
 
 namespace ldso {
-
+    /**
+     * @brief Construct a new Pixel Selector:: Pixel Selector object
+     * Initialize PixelSelector with allocation of some space for image gradiant
+     * @param w 
+     * @param h 
+     */
     PixelSelector::PixelSelector(int w, int h) {
         randomPattern = new unsigned char[w * h];
         std::srand(3141592);    // want to be deterministic.
         for (int i = 0; i < w * h; i++)
-            randomPattern[i] = rand() & 0xFF;
+            randomPattern[i] = rand() & 0xFF; // 197, deterministic -> why it is random pattern? and why it uses bit operation?
         currentPotential = 3;
-        gradHist = new int[100 * (1 + w / 32) * (1 + h / 32)];
-        ths = new float[(w / 32) * (h / 32) + 100];
+        gradHist = new int[100 * (1 + w / 32) * (1 + h / 32)]; // (w/32) + 1: number of width/32, error = 1, each grid can has 100 values -> don't have to be like this, I think..
+        ths = new float[(w / 32) * (h / 32) + 100]; // I don't know the exact meaning of 100, I will find it later
         thsSmoothed = new float[(w / 32) * (h / 32) + 100];
     }
-
+    /**
+     * @brief Destroy the Pixel Selector:: Pixel Selector object
+     * Destruct PixelSelector by deleting all of the dynamic arrays
+     */
     PixelSelector::~PixelSelector() {
         delete[] randomPattern;
         delete[] gradHist;
         delete[] ths;
         delete[] thsSmoothed;
     }
-
+    /**
+     * @brief compute Gradient Histogram's threshold by pre-defined threshold(pixel count)
+     * 
+     * @param hist 
+     * @param below 
+     * @return int 
+     */
     int computeHistQuantil(int *hist, float below) {
-        int th = hist[0] * below + 0.5f;
+        int th = hist[0] * below + 0.5f; // get the threshold count by total count(hist[0])
         for (int i = 0; i < 90; i++) {
-            th -= hist[i + 1];
-            if (th < 0) return i;
+            th -= hist[i + 1]; // find the threshold bin by substraction
+            if (th < 0) return i; // if find, return it
         }
-        return 90;
+        return 90; // bin is 0 ~ 49, so return 90 means not find
     }
-
+    /**
+     * @brief Make gradient histogram of the frame
+     * 
+     * @param fh 
+     */
     void PixelSelector::makeHists(shared_ptr<FrameHessian> fh) {
         gradHistFrame = fh;
-        float *mapmax0 = fh->absSquaredGrad[0];
+        float *mapmax0 = fh->absSquaredGrad[0]; // gradient map of original image
 
-        int w = wG[0];
+        int w = wG[0]; // in this function, only uses size of original image
         int h = hG[0];
 
-        int w32 = w / 32;
-        int h32 = h / 32;
-        thsStep = w32;
+        int w32 = w / 32; // num of width after divided into 32x32 grid
+        int h32 = h / 32; // num of height after divided into 32x32 grid
+        thsStep = w32; // threshold step(numnber of pixel) of one grid
 
         for (int y = 0; y < h32; y++)
             for (int x = 0; x < w32; x++) {
-                float *map0 = mapmax0 + 32 * x + 32 * y * w;
-                int *hist0 = gradHist;// + 50*(x+y*w32);
-                memset(hist0, 0, sizeof(int) * 50);
+                float *map0 = mapmax0 + 32 * x + 32 * y * w; // map0 is the pointer for the current pixel of gradient map
+                int *hist0 = gradHist;// + 50*(x+y*w32);, gradient histogram memory -> former code was keeping the full histogram map for all grids, but now don't have to be like this
+                memset(hist0, 0, sizeof(int) * 50); // initialize the hist0, histogram range 0 ~ 49
 
                 for (int j = 0; j < 32; j++)
                     for (int i = 0; i < 32; i++) {
                         int it = i + 32 * x;
                         int jt = j + 32 * y;
-                        if (it > w - 2 || jt > h - 2 || it < 1 || jt < 1) continue;
-                        int g = sqrtf(map0[i + j * w]);
-                        if (g > 48) g = 48;
-                        hist0[g + 1]++;
-                        hist0[0]++;
+                        if (it > w - 2 || jt > h - 2 || it < 1 || jt < 1) continue; // skip the edge of the image;in the makeImage function, already skipped edge regions
+                        int g = sqrtf(map0[i + j * w]); // get the absSquaredGrad (dx^2, + dy^2), and square it to get gradient
+                        if (g > 48) g = 48; // if the gradient is bigger than 48, cut off into 48
+                        hist0[g + 1]++; // increase the count of gradient in the range of 1 ~ 49 -> b/c 0 is for the total count
+                        hist0[0]++; // I don't know why it increases gradient 1 also, but in my opinion, it is for the self-gradient? NO, hist0[0] is the total count of image
                     }
 
-                ths[x + y * w32] = computeHistQuantil(hist0, setting_minGradHistCut) + setting_minGradHistAdd;
+                ths[x + y * w32] = computeHistQuantil(hist0, setting_minGradHistCut) + setting_minGradHistAdd; // calculate threshold for each grid
             }
-
+        // calculate theSmoothed
         for (int y = 0; y < h32; y++)
             for (int x = 0; x < w32; x++) {
                 float sum = 0, num = 0;
@@ -104,7 +122,7 @@ namespace ldso {
                 num++;
                 sum += ths[x + y * w32];
 
-                thsSmoothed[x + y * w32] = (sum / num) * (sum / num);
+                thsSmoothed[x + y * w32] = (sum / num) * (sum / num); // bind 3x3 threshold and get average theSmoothed for smoothe gradient
             }
     }
 

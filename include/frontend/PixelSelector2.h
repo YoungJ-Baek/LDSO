@@ -21,13 +21,13 @@ namespace ldso {
 
         /**
          * select points from an input frame
-         * @param fh
+         * @param fh FrameHessian
          * @param map_out an image of point selection, same size with the input image and value != 0 means the point is selected
          * // below is some parameters affecting the selection
          * @param density
          * @param recursionsLeft
          * @param plot
-         * @param thFactor
+         * @param thFactor what is this?
          * @return number of selected points
          */
         int makeMaps(
@@ -43,7 +43,7 @@ namespace ldso {
         int currentPotential;
         bool allowFast = false;
     private:
-
+        // Eigen vector 3x1, dtype=int
         Eigen::Vector3i select(const shared_ptr<FrameHessian> fh,
                                float *map_out, int pot, float thFactor = 1);
 
