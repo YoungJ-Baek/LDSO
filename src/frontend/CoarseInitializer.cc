@@ -546,17 +546,17 @@ namespace ldso {
 
     void CoarseInitializer::setFirst(shared_ptr<CalibHessian> HCalib, shared_ptr<FrameHessian> newFrameHessian) {
 
-        makeK(HCalib);
-        firstFrame = newFrameHessian;
+        makeK(HCalib); // make intrinsic parameter (camera matrix) of all the image pyramids
+        firstFrame = newFrameHessian; // define first frame parameter for initialization
 
-        PixelSelector sel(w[0], h[0]);
+        PixelSelector sel(w[0], h[0]); // create PixelSelector parameter 'sel'
 
         float *statusMap = new float[w[0] * h[0]];
         bool *statusMapB = new bool[w[0] * h[0]];
 
-        float densities[] = {0.03, 0.05, 0.15, 0.5, 1};
+        float densities[] = {0.03, 0.05, 0.15, 0.5, 1}; // maybe it is the pixel density
         for (int lvl = 0; lvl < pyrLevelsUsed; lvl++) {
-            sel.currentPotential = 3;
+            sel.currentPotential = 3; // what's the meaning of currentPotential?
             int npts;
             if (lvl == 0) {
                 npts = sel.makeMaps(firstFrame, statusMap, densities[lvl] * w[0] * h[0], 1, false, 2);
@@ -694,7 +694,7 @@ namespace ldso {
         fy[0] = HCalib->fyl();
         cx[0] = HCalib->cxl();
         cy[0] = HCalib->cyl();
-
+        // why ++level instead of level++?
         for (int level = 1; level < pyrLevelsUsed; ++level) {
             w[level] = w[0] >> level;
             h[level] = h[0] >> level;
@@ -705,8 +705,8 @@ namespace ldso {
         }
 
         for (int level = 0; level < pyrLevelsUsed; ++level) {
-            K[level] << fx[level], 0.0, cx[level], 0.0, fy[level], cy[level], 0.0, 0.0, 1.0;
-            Ki[level] = K[level].inverse();
+            K[level] << fx[level], 0.0, cx[level], 0.0, fy[level], cy[level], 0.0, 0.0, 1.0; // intrinsic parameter
+            Ki[level] = K[level].inverse(); // inverse matrix of intrinsic parameter
             fxi[level] = Ki[level](0, 0);
             fyi[level] = Ki[level](1, 1);
             cxi[level] = Ki[level](0, 2);
