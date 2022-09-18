@@ -275,12 +275,12 @@ void parseArgument(char *arg) {
 
     printf("could not parse argument \"%s\"!!!!\n", arg);
 }
-
+// 'argc' means the number of arguments (first argument is for file-name, so 1 means there is no argument);'argv[index]' means index-th argument (argv[0] == file-name)
 int main(int argc, char **argv) {
 
-    FLAGS_colorlogtostderr = true;
+    FLAGS_colorlogtostderr = true; // Set the color message recorded to the standard output (if supported by the terminal) @ glog
     for (int i = 1; i < argc; i++)
-        parseArgument(argv[i]);
+        parseArgument(argv[i]); // Parsing all arguments (We can check the possible formats for arguments via this 'parseArgument' function)
 
     // check setting conflicts
     if (setting_enableLoopClosing && (setting_pointSelection != 1)) {
@@ -292,16 +292,16 @@ int main(int argc, char **argv) {
     if (setting_showLoopClosing) {
         LOG(WARNING) << "show loop closing results. The program will be paused when any loop is found" << endl;
     }
-
+    // 'shared_ptr' is one of the smart pointer class that shares an object, then free the resource after shared count falls to 0
     shared_ptr<ImageFolderReader> reader(
-            new ImageFolderReader(ImageFolderReader::TUM_MONO, source, calib, gammaCalib, vignette));
+            new ImageFolderReader(ImageFolderReader::TUM_MONO, source, calib, gammaCalib, vignette)); // DatasetType: Tum_MONO;path: source;calibFile: calib;gammaFile: gammaCalib;vignetteFile: vignette
 
-    reader->setGlobalCalibration();
+    reader->setGlobalCalibration(); // set global calibration
 
     if (setting_photometricCalibration > 0 && reader->getPhotometricGamma() == 0) {
         LOG(ERROR) << "ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ";
         exit(1);
-    }
+    } // model = 1 or 2 requires photometric gamma
 
     int lstart = startIdx;
     int lend = endIdx;
@@ -314,14 +314,14 @@ int main(int argc, char **argv) {
         lend = startIdx;
         linc = -1;
     }
-
+    // load ORBVocabulary from the directory
     shared_ptr<ORBVocabulary> voc(new ORBVocabulary());
     voc->load(vocPath);
-
+    // initialize SLAM
     shared_ptr<FullSystem> fullSystem(new FullSystem(voc));
     fullSystem->setGammaFunction(reader->getPhotometricGamma());
-    fullSystem->linearizeOperation = (playbackSpeed == 0);
-
+    fullSystem->linearizeOperation = (playbackSpeed == 0); // 'linearizeOperation': this is something controls if the optimization runs in a single thread,
+    // initialize Viewer
     shared_ptr<PangolinDSOViewer> viewer = nullptr;
     if (!disableAllDisplay) {
         viewer = shared_ptr<PangolinDSOViewer>(new PangolinDSOViewer(wG[0], hG[0], false));
@@ -329,11 +329,11 @@ int main(int argc, char **argv) {
     } else {
         LOG(INFO) << "visualization is disabled!" << endl;
     }
-
+    // why MacOS is happy in this point?
     // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
     std::thread runthread([&]() {
-        std::vector<int> idsToPlay;
-        std::vector<double> timesToPlayAt;
+        std::vector<int> idsToPlay; // indexing the frames with the IDs
+        std::vector<double> timesToPlayAt; // recording the time diff between frames
         for (int i = lstart; i >= 0 && i < reader->getNumImages() && linc * i < linc * lend; i += linc) {
             idsToPlay.push_back(i);
             if (timesToPlayAt.size() == 0) {
@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
             }
         }
 
-
+        // turn off the preload;however, when we load the map, it would be better to pre-load the map
         std::vector<ImageAndExposure *> preloadedImages;
         if (preload) {
             printf("LOADING ALL IMAGES!\n");
@@ -354,12 +354,12 @@ int main(int argc, char **argv) {
                 preloadedImages.push_back(reader->getImage(i));
             }
         }
-
-        struct timeval tv_start;
-        gettimeofday(&tv_start, NULL);
+        // maybe to calculate the run-time?
+        struct timeval tv_start; // call structure to save the current time
+        gettimeofday(&tv_start, NULL); // get current time
         clock_t started = clock();
         double sInitializerOffset = 0;
-
+        // for all the frames
         for (int ii = 0; ii < (int) idsToPlay.size(); ii++) {
 
             while (setting_pause == true) {
@@ -375,11 +375,11 @@ int main(int argc, char **argv) {
 
             int i = idsToPlay[ii];
 
-            ImageAndExposure *img;
-            if (preload)
+            ImageAndExposure *img; // allocate memory for image
+            if (preload) // no preload option -> not enter
                 img = preloadedImages[ii];
             else
-                img = reader->getImage(i);
+                img = reader->getImage(i); // read image (grayscale) by cv2
 
             bool skipFrame = false;
             if (playbackSpeed != 0) {
@@ -390,7 +390,7 @@ int main(int argc, char **argv) {
 
                 if (sSinceStart < timesToPlayAt[ii]) {
                     // usleep((int) ((timesToPlayAt[ii] - sSinceStart) * 1000 * 1000));
-                }
+                } // if run-time is too slow to load all the images on time, there might be some skip for frames
                 else if (sSinceStart > timesToPlayAt[ii] + 0.5 + 0.1 * (ii % 2)) {
                     printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
                     skipFrame = true;

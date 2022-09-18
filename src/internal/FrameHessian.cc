@@ -42,10 +42,10 @@ namespace ldso {
         }
 
         void FrameHessian::makeImages(float *color, const shared_ptr<CalibHessian> &HCalib) {
-
+            // pyramid level is 6 in LDSO, note not all pyramids are used during tracking
             for (int i = 0; i < pyrLevelsUsed; i++) {
-                dIp[i] = new Eigen::Vector3f[wG[i] * hG[i]];
-                absSquaredGrad[i] = new float[wG[i] * hG[i]];
+                dIp[i] = new Eigen::Vector3f[wG[i] * hG[i]]; // dIp[n] means n-th pyramid images contains original and gradiant. [n][0]:original;[n][1]:dx;[n][2]:dy
+                absSquaredGrad[i] = new float[wG[i] * hG[i]]; // allocate image size
                 memset(absSquaredGrad[i], 0, wG[i] * hG[i]);
                 memset(dIp[i], 0, 3 * wG[i] * hG[i]);
             }
@@ -55,14 +55,14 @@ namespace ldso {
             int w = wG[0];
             int h = hG[0];
             for (int i = 0; i < w * h; i++) {
-                dI[i][0] = color[i];
+                dI[i][0] = color[i]; // copy the original image
             }
 
             for (int lvl = 0; lvl < pyrLevelsUsed; lvl++) {
-                int wl = wG[lvl], hl = hG[lvl];
+                int wl = wG[lvl], hl = hG[lvl]; // wG, hG are width, height size of pyramid images that resizes 1/2 for every step (by using >> operator)
                 Eigen::Vector3f *dI_l = dIp[lvl];
 
-                float *dabs_l = absSquaredGrad[lvl];
+                float *dabs_l = absSquaredGrad[lvl]; // allocate image size
                 if (lvl > 0) {
                     int lvlm1 = lvl - 1;
                     int wlm1 = wG[lvlm1];

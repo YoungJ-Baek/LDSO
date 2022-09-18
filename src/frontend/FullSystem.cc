@@ -68,24 +68,24 @@ namespace ldso {
     void FullSystem::addActiveFrame(ImageAndExposure *image, int id) {
         if (isLost)
             return;
-        unique_lock<mutex> lock(trackMutex);
+        unique_lock<mutex> lock(trackMutex); // limit the simultaneous access on the shared resources
 
         LOG(INFO) << "*** taking frame " << id << " ***" << endl;
 
         // create frame and frame hessian
         shared_ptr<Frame> frame(new Frame(image->timestamp));
         frame->CreateFH(frame);
-        allFrameHistory.push_back(frame);
+        allFrameHistory.push_back(frame); // all frame history is in the full system
 
         // ==== make images ==== //
         shared_ptr<FrameHessian> fh = frame->frameHessian;
         fh->ab_exposure = image->exposure_time;
         fh->makeImages(image->image, Hcalib->mpCH);
 
-        if (!initialized) {
+        if (!initialized) { // default is false
             LOG(INFO) << "Initializing ... " << endl;
             // use initializer
-            if (coarseInitializer->frameID < 0) {   // first frame not set, set it
+            if (coarseInitializer->frameID < 0) {   // first frame not set, set it (default is -1)
                 coarseInitializer->setFirst(Hcalib->mpCH, fh);
             } else if (coarseInitializer->trackFrame(fh)) {
                 // init succeeded
