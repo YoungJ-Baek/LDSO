@@ -9,7 +9,7 @@ namespace ldso {
     class ImageAndExposure {
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        float *image = nullptr;            // irradiance. between 0 and 256
+        float *image = nullptr;            // irradiance. between 0 and 256, indensity ==> image
         int w = 0, h = 0;                // width and height;
         double timestamp = 0;
         float exposure_time = 0;    // exposure time in ms.
