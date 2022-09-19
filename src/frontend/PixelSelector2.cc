@@ -125,7 +125,17 @@ namespace ldso {
                 thsSmoothed[x + y * w32] = (sum / num) * (sum / num); // bind 3x3 threshold and get average theSmoothed for smoothe gradient
             }
     }
-
+    /**
+     * @brief 
+     * 
+     * @param fh 
+     * @param map_out 
+     * @param density 
+     * @param recursionsLeft 
+     * @param plot 
+     * @param thFactor 
+     * @return int 
+     */
     int PixelSelector::makeMaps(const shared_ptr<FrameHessian> fh, float *map_out, float density,
                                 int recursionsLeft, bool plot, float thFactor) {
 
@@ -134,10 +144,10 @@ namespace ldso {
         float quotia;
         int idealPotential = currentPotential;
 
-        if (fh != gradHistFrame) makeHists(fh);
+        if (fh != gradHistFrame) makeHists(fh); // make Gradient Histogram
 
         // select!
-        Eigen::Vector3i n = this->select(fh, map_out, currentPotential, thFactor);
+        Eigen::Vector3i n = this->select(fh, map_out, currentPotential, thFactor); // select pixels via Dynamic Grid
 
         // sub-select!
         numHave = n[0] + n[1] + n[2];
@@ -184,7 +194,15 @@ namespace ldso {
 
         return numHaveSub;
     }
-
+    /**
+     * @brief 
+     * 
+     * @param fh 
+     * @param map_out 
+     * @param pot 
+     * @param thFactor 
+     * @return Eigen::Vector3i 
+     */
     Eigen::Vector3i PixelSelector::select(const shared_ptr<FrameHessian> fh, float *map_out, int pot,
                                           float thFactor) {
         Eigen::Vector3f const *const map0 = fh->dI;
