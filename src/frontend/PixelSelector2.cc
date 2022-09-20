@@ -195,7 +195,7 @@ namespace ldso {
         return numHaveSub;
     }
     /**
-     * @brief 
+     * @brief Generating Pixel map via Dynamic Grid method
      * 
      * @param fh 
      * @param map_out 
@@ -205,19 +205,19 @@ namespace ldso {
      */
     Eigen::Vector3i PixelSelector::select(const shared_ptr<FrameHessian> fh, float *map_out, int pot,
                                           float thFactor) {
-        Eigen::Vector3f const *const map0 = fh->dI;
-
-        float *mapmax0 = fh->absSquaredGrad[0];
-        float *mapmax1 = fh->absSquaredGrad[1];
-        float *mapmax2 = fh->absSquaredGrad[2];
-
-
-        int w = wG[0];
-        int w1 = wG[1];
-        int w2 = wG[2];
-        int h = hG[0];
+        Eigen::Vector3f const *const map0 = fh->dI; // dI[0] = pixel intensity;dI[1] = dx;dI[2] = dy
+        // absSquaredGrad contains dx^2 + dy^2
+        float *mapmax0 = fh->absSquaredGrad[0]; // pyramid level 0 (original)
+        float *mapmax1 = fh->absSquaredGrad[1]; // pyramid level 1 (1/4)
+        float *mapmax2 = fh->absSquaredGrad[2]; // pyramid level 2 (1/64)
 
 
+        int w = wG[0]; // width of original image
+        int w1 = wG[1]; //width of pyramid level 1 (1/4)
+        int w2 = wG[2]; //width of pyramid level 2 (1/64)
+        int h = hG[0]; // height of original image
+
+        // random directions to prevent pixels to be crowded in certain regions
         const Vec2f directions[16] = {
                 Vec2f(0, 1.0000),
                 Vec2f(0.3827, 0.9239),
@@ -236,20 +236,20 @@ namespace ldso {
                 Vec2f(1.0000, 0.0000),
                 Vec2f(0.1951, -0.9808)};
 
-        memset(map_out, 0, w * h * sizeof(PixelSelectorStatus));
+        memset(map_out, 0, w * h * sizeof(PixelSelectorStatus)); // initialize map_out that can store pyramid levels of selected pixels
 
-        float dw1 = setting_gradDownweightPerLevel;
-        float dw2 = dw1 * dw1;
+        float dw1 = setting_gradDownweightPerLevel; // 0.75
+        float dw2 = dw1 * dw1; // multiply down weight (0.75) as pyramid levels go high -> intend to select many pixels from the lowest level, the original image
 
-        int n3 = 0, n2 = 0, n4 = 0;
-        for (int y4 = 0; y4 < h; y4 += (4 * pot))
+        int n3 = 0, n2 = 0, n4 = 0; // num of pixel selected from each levels
+        for (int y4 = 0; y4 < h; y4 += (4 * pot)) // loop for pyramid level 0 (original)
             for (int x4 = 0; x4 < w; x4 += (4 * pot)) {
                 int my3 = std::min((4 * pot), h - y4);
                 int mx3 = std::min((4 * pot), w - x4);
                 int bestIdx4 = -1;
                 float bestVal4 = 0;
                 Vec2f dir4 = directions[randomPattern[n2] & 0xF];
-                for (int y3 = 0; y3 < my3; y3 += (2 * pot))
+                for (int y3 = 0; y3 < my3; y3 += (2 * pot)) // loop for pyramid level 1 (1/4)
                     for (int x3 = 0; x3 < mx3; x3 += (2 * pot)) {
                         int x34 = x3 + x4;
                         int y34 = y3 + y4;
@@ -258,7 +258,7 @@ namespace ldso {
                         int bestIdx3 = -1;
                         float bestVal3 = 0;
                         Vec2f dir3 = directions[randomPattern[n2] & 0xF];
-                        for (int y2 = 0; y2 < my2; y2 += pot)
+                        for (int y2 = 0; y2 < my2; y2 += pot) // loop for pyramid level 2 (1/64)
                             for (int x2 = 0; x2 < mx2; x2 += pot) {
                                 int x234 = x2 + x34;
                                 int y234 = y2 + y34;
@@ -267,27 +267,27 @@ namespace ldso {
                                 int bestIdx2 = -1;
                                 float bestVal2 = 0;
                                 Vec2f dir2 = directions[randomPattern[n2] & 0xF];
-                                for (int y1 = 0; y1 < my1; y1 += 1)
+                                for (int y1 = 0; y1 < my1; y1 += 1) // select pixel from current grid
                                     for (int x1 = 0; x1 < mx1; x1 += 1) {
                                         assert(x1 + x234 < w);
                                         assert(y1 + y234 < h);
-                                        int idx = x1 + x234 + w * (y1 + y234);
-                                        int xf = x1 + x234;
-                                        int yf = y1 + y234;
+                                        int idx = x1 + x234 + w * (y1 + y234); // index of current pixel
+                                        int xf = x1 + x234; // current x
+                                        int yf = y1 + y234; // current y
 
-                                        if (xf < 4 || xf >= w - 5 || yf < 4 || yf > h - 4) continue;
-
-
-                                        float pixelTH0 = thsSmoothed[(xf >> 5) + (yf >> 5) * thsStep];
-                                        float pixelTH1 = pixelTH0 * dw1;
-                                        float pixelTH2 = pixelTH1 * dw2;
+                                        if (xf < 4 || xf >= w - 5 || yf < 4 || yf > h - 4) continue; //skip the edges
 
 
-                                        float ag0 = mapmax0[idx];
-                                        if (ag0 > pixelTH0 * thFactor) {
-                                            Vec2f ag0d = map0[idx].tail<2>();
-                                            float dirNorm = fabsf((float) (ag0d.dot(dir2)));
-                                            if (!setting_selectDirectionDistribution) dirNorm = ag0;
+                                        float pixelTH0 = thsSmoothed[(xf >> 5) + (yf >> 5) * thsStep]; // why bit operation?
+                                        float pixelTH1 = pixelTH0 * dw1; // multiply down weight to reduce the probability
+                                        float pixelTH2 = pixelTH1 * dw2; // multiply down weight to reduce the probability
+
+
+                                        float ag0 = mapmax0[idx]; // ag0 -> current pixel's absolute squared gradient (dx^2 + dy^2)
+                                        if (ag0 > pixelTH0 * thFactor) { // if current pixel's absolute squared gradient is bigger than the threshold -> check original
+                                            Vec2f ag0d = map0[idx].tail<2>(); // ag0d -> current pixel's dx, dy
+                                            float dirNorm = fabsf((float) (ag0d.dot(dir2))); // dirNorm : random direction * (dx, dy)
+                                            if (!setting_selectDirectionDistribution) dirNorm = ag0; // parameter is set true, so not enter this code
 
                                             if (dirNorm > bestVal2) {
                                                 bestVal2 = dirNorm;
