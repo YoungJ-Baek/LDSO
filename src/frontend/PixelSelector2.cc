@@ -209,12 +209,12 @@ namespace ldso {
         // absSquaredGrad contains dx^2 + dy^2
         float *mapmax0 = fh->absSquaredGrad[0]; // pyramid level 0 (original)
         float *mapmax1 = fh->absSquaredGrad[1]; // pyramid level 1 (1/4)
-        float *mapmax2 = fh->absSquaredGrad[2]; // pyramid level 2 (1/64)
+        float *mapmax2 = fh->absSquaredGrad[2]; // pyramid level 2 (1/16)
 
 
         int w = wG[0]; // width of original image
         int w1 = wG[1]; //width of pyramid level 1 (1/4)
-        int w2 = wG[2]; //width of pyramid level 2 (1/64)
+        int w2 = wG[2]; //width of pyramid level 2 (1/16)
         int h = hG[0]; // height of original image
 
         // random directions to prevent pixels to be crowded in certain regions
@@ -242,7 +242,7 @@ namespace ldso {
         float dw2 = dw1 * dw1; // multiply down weight (0.75) as pyramid levels go high -> intend to select many pixels from the lowest level, the original image
 
         int n3 = 0, n2 = 0, n4 = 0; // num of pixel selected from each levels
-        for (int y4 = 0; y4 < h; y4 += (4 * pot)) // loop for pyramid level 0 (original)
+        for (int y4 = 0; y4 < h; y4 += (4 * pot)) // loop for pyramid level 2 (1/16)
             for (int x4 = 0; x4 < w; x4 += (4 * pot)) {
                 int my3 = std::min((4 * pot), h - y4);
                 int mx3 = std::min((4 * pot), w - x4);
@@ -258,7 +258,7 @@ namespace ldso {
                         int bestIdx3 = -1;
                         float bestVal3 = 0;
                         Vec2f dir3 = directions[randomPattern[n2] & 0xF];
-                        for (int y2 = 0; y2 < my2; y2 += pot) // loop for pyramid level 2 (1/64)
+                        for (int y2 = 0; y2 < my2; y2 += pot) // loop for pyramid level 0 (original)
                             for (int x2 = 0; x2 < mx2; x2 += pot) {
                                 int x234 = x2 + x34;
                                 int y234 = y2 + y34;
