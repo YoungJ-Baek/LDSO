@@ -227,7 +227,7 @@ namespace ldso {
 
     inline int makePixelStatus(Eigen::Vector3f *grads, bool *map, int w, int h, float desiredDensity, int recsLeft = 5,
                                float THFac = 1) {
-        if (sparsityFactor < 1) sparsityFactor = 1;
+        if (sparsityFactor < 1) sparsityFactor = 1; // default setting for sparsityFactor is 5
 
         int numGoodPoints;
 
@@ -236,7 +236,7 @@ namespace ldso {
         else if (sparsityFactor == 2) numGoodPoints = gridMaxSelection<2>(grads, map, w, h, THFac);
         else if (sparsityFactor == 3) numGoodPoints = gridMaxSelection<3>(grads, map, w, h, THFac);
         else if (sparsityFactor == 4) numGoodPoints = gridMaxSelection<4>(grads, map, w, h, THFac);
-        else if (sparsityFactor == 5) numGoodPoints = gridMaxSelection<5>(grads, map, w, h, THFac);
+        else if (sparsityFactor == 5) numGoodPoints = gridMaxSelection<5>(grads, map, w, h, THFac); // choose this for default
         else if (sparsityFactor == 6) numGoodPoints = gridMaxSelection<6>(grads, map, w, h, THFac);
         else if (sparsityFactor == 7) numGoodPoints = gridMaxSelection<7>(grads, map, w, h, THFac);
         else if (sparsityFactor == 8) numGoodPoints = gridMaxSelection<8>(grads, map, w, h, THFac);
