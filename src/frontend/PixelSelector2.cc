@@ -126,7 +126,7 @@ namespace ldso {
             }
     }
     /**
-     * @brief 
+     * @brief make maps via gradient histogram and dynamic grid
      * 
      * @param fh 
      * @param map_out 
@@ -140,24 +140,24 @@ namespace ldso {
                                 int recursionsLeft, bool plot, float thFactor) {
 
         float numHave = 0;
-        float numWant = density;
+        float numWant = density; // lvl0 --> 0.03 of total pixels
         float quotia;
         int idealPotential = currentPotential;
 
         if (fh != gradHistFrame) makeHists(fh); // make Gradient Histogram
 
         // select!
-        Eigen::Vector3i n = this->select(fh, map_out, currentPotential, thFactor); // select pixels via Dynamic Grid
+        Eigen::Vector3i n = this->select(fh, map_out, currentPotential, thFactor); // select pixels via Dynamic Grid, currentPotential = 3
 
         // sub-select!
-        numHave = n[0] + n[1] + n[2];
-        quotia = numWant / numHave;
+        numHave = n[0] + n[1] + n[2]; // get the total num of selected pixels via adding each nums of image pyramids
+        quotia = numWant / numHave; // calculate the ratio of target/selected pixels
 
         // by default we want to over-sample by 40% just to be sure.
         float K = numHave * (currentPotential + 1) * (currentPotential + 1);
         idealPotential = sqrtf(K / numWant) - 1;    // round down.
         if (idealPotential < 1) idealPotential = 1;
-
+        // generate pixel selection map one more time after adjusting grid size
         if (recursionsLeft > 0 && quotia > 1.25 && currentPotential > 1) {
             // re-sample to get more points!
             // potential needs to be smaller
@@ -289,65 +289,65 @@ namespace ldso {
                                             float dirNorm = fabsf((float) (ag0d.dot(dir2))); // dirNorm : random direction * (dx, dy)
                                             if (!setting_selectDirectionDistribution) dirNorm = ag0; // parameter is set true, so not enter this code
 
-                                            if (dirNorm > bestVal2) {
+                                            if (dirNorm > bestVal2) { // if a pixel that satisfies the condition in the original image's grid, add it and escape the loop
                                                 bestVal2 = dirNorm;
                                                 bestIdx2 = idx;
-                                                bestIdx3 = -2;
+                                                bestIdx3 = -2; // -2 means non-activated
                                                 bestIdx4 = -2;
                                             }
                                         }
-                                        if (bestIdx3 == -2) continue;
+                                        if (bestIdx3 == -2) continue; // if a pixel is selected at the original image, move to the next grid
 
-                                        float ag1 = mapmax1[(int) (xf * 0.5f + 0.25f) + (int) (yf * 0.5f + 0.25f) * w1];
+                                        float ag1 = mapmax1[(int) (xf * 0.5f + 0.25f) + (int) (yf * 0.5f + 0.25f) * w1]; // (1/4) image's absolute squared gradient
                                         if (ag1 > pixelTH1 * thFactor) {
                                             Vec2f ag0d = map0[idx].tail<2>();
                                             float dirNorm = fabsf((float) (ag0d.dot(dir3)));
                                             if (!setting_selectDirectionDistribution) dirNorm = ag1;
 
-                                            if (dirNorm > bestVal3) {
+                                            if (dirNorm > bestVal3) { // if a pixel that satisfies the condition in the (1/4) image's grid, add it and escape the loop
                                                 bestVal3 = dirNorm;
                                                 bestIdx3 = idx;
                                                 bestIdx4 = -2;
                                             }
                                         }
-                                        if (bestIdx4 == -2) continue;
+                                        if (bestIdx4 == -2) continue; // if a pixel is selected at the (1/4) image, move to the next grid
 
                                         float ag2 = mapmax2[(int) (xf * 0.25f + 0.125) +
-                                                            (int) (yf * 0.25f + 0.125) * w2];
+                                                            (int) (yf * 0.25f + 0.125) * w2]; // (1/16) image's absolute squared gradient
                                         if (ag2 > pixelTH2 * thFactor) {
                                             Vec2f ag0d = map0[idx].tail<2>();
                                             float dirNorm = fabsf((float) (ag0d.dot(dir4)));
                                             if (!setting_selectDirectionDistribution) dirNorm = ag2;
 
-                                            if (dirNorm > bestVal4) {
+                                            if (dirNorm > bestVal4) { // if a pixel that satisfies the condition in the (1/16) image's grid, add it and escape the loop
                                                 bestVal4 = dirNorm;
                                                 bestIdx4 = idx;
                                             }
                                         }
                                     }
 
-                                if (bestIdx2 > 0) {
-                                    map_out[bestIdx2] = 1;
+                                if (bestIdx2 > 0) { // if a pixel is selected from the original image
+                                    map_out[bestIdx2] = 1; // replace 0 with 1 if a pixel is selected from the original image
                                     bestVal3 = 1e10;
-                                    n2++;
+                                    n2++; // num of original image's selected pixels
                                 }
                             }
 
-                        if (bestIdx3 > 0) {
-                            map_out[bestIdx3] = 2;
+                        if (bestIdx3 > 0) { // if a pixel is selected from the (1/4) image
+                            map_out[bestIdx3] = 2; // replace 0 with 2 if a pixel is selected from the (1/4) image
                             bestVal4 = 1e10;
-                            n3++;
+                            n3++; // num of (1/4) image's selected pixels
                         }
                     }
 
-                if (bestIdx4 > 0) {
-                    map_out[bestIdx4] = 4;
-                    n4++;
+                if (bestIdx4 > 0) { // if a pixel is selected from the (1/16) image
+                    map_out[bestIdx4] = 4; // replace 0 with 4 if a pixel is selected from the (1/16) image
+                    n4++; // num of (1/16) image's selected pixels
                 }
             }
 
 
-        return Eigen::Vector3i(n2, n3, n4);
+        return Eigen::Vector3i(n2, n3, n4); // return each nums of selected pixels from each pyramids => we can get total num of selected pixels by sum of them
     }
 
 }
